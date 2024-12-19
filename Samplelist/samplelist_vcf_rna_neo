@@ -1,0 +1,9 @@
+FR-01-173-RP	FR-01-173-RP_mutect1.pass.converted.vcf	FR-01-173-RP_strelka.pass.converted.vcf	FR-01-173-RP_radia_filtered.vcf	FR-01-173-RP_rnaseq_bqsr_sorted_ar_markdup_splitn.bam
+FR-01-174-PDRJ	FR-01-174-PDRJ_mutect1.pass.converted.vcf	FR-01-174-PDRJ_strelka.pass.converted.vcf	FR-01-174-PDRJ_radia_filtered.vcf	FR-01-174-PDRJ_rnaseq_bqsr_sorted_ar_markdup_splitn.bam
+FR-01-177-BA	FR-01-177-BA_mutect1.pass.converted.vcf	FR-01-177-BA_strelka.pass.converted.vcf	FR-01-177-BA_radia_filtered.vcf	FR-01-177-BA_rnaseq_bqsr_sorted_ar_markdup_splitn.bam
+FR-01-200-SS	FR-01-200-SS_mutect1.pass.converted.vcf	FR-01-200-SS_strelka.pass.converted.vcf	FR-01-200-SS_radia_filtered.vcf	FR-01-200-SS_rnaseq_bqsr_sorted_ar_markdup_splitn.bam
+FR-03-113-RG-2	FR-03-113-RG-2_mutect1.pass.converted.vcf	FR-03-113-RG-2_strelka.pass.converted.vcf	FR-03-113-RG-2_radia_filtered.vcf	FR-03-113-RG-2_rnaseq_bqsr_sorted_ar_markdup_splitn.bam
+FR-03-113-RG	FR-03-113-RG_mutect1.pass.converted.vcf	FR-03-113-RG_strelka.pass.converted.vcf	FR-03-113-RG_radia_filtered.vcf	FR-03-113-RG_rnaseq_bqsr_sorted_ar_markdup_splitn.bam
+FR-03-178-DA	FR-03-178-DA_mutect1.pass.converted.vcf	FR-03-178-DA_strelka.pass.converted.vcf	FR-03-178-DA_radia_filtered.vcf	FR-03-178-DA_rnaseq_bqsr_sorted_ar_markdup_splitn.bam
+FR-04-127-FG	FR-04-127-FG_mutect1.pass.converted.vcf	FR-04-127-FG_strelka.pass.converted.vcf	FR-04-127-FG_radia_filtered.vcf	FR-04-127-FG_rnaseq_bqsr_sorted_ar_markdup_splitn.bam
+FR-04-062-GC	FR-04-062-GC_mutect1.pass.converted.vcf	FR-04-062-GC_strelka.pass.converted.vcf	FR-04-062-GC_radia_filtered.vcf	FR-04-062-GC_rnaseq_bqsr_sorted_ar_markdup_splitn.bam
