@@ -1,0 +1,420 @@
+# commande pour enlever tout into channel_int et from channel_out dans un script nextflow: Utile lors de la conversion de DSL1 en DSL2 en gardant l'expression "Channel.fromList..."
+sed -i '/Channel\.fromList/!{ s/into.*//; s/from.*// }' remove_markdup_notMulti_htseq_rnaseq.nf
+
+
+
+# Commande pour extraire les path fastq brutes (inputs) dans les scripts fastp.sh  
+1) commande pour extraire les ID	   
+ls | grep submit_fastp | cut -d_ -f3-4 | cut -d. -f1
+2) for i in $(less ~/Path_Fastq_All_Ideation/Id_all_run_02); do fq1=$(grep -oP '(?<=fastp -i ).*?(?= -o)' submit_fastp_${i}.sh) ; fq2=$(grep -oP '(?<=-I ).*?(?= -O)' submit_fastp_${i}.sh); echo -e $i'\t'$fq1'\t'$fq2 ; done >> ~/Path_Fastq_All_Ideation/all_path_fq
+
+grep -oP utilise l'option -o pour afficher seulement la correspondance et -P pour activer l'utilisation des expressions régulières Perl.
+.*? correspond à n'importe quel caractère (le moins possible, grâce au ?).
+(?= -o) est une assertion qui correspond à ce qui précède " -o".
+# Même chose pour input2, on prends tout ce qui est entre -I et -O 
+
+# commande pour extraire que le chemin abulu genre /SCVOL02/ideation_raw_data/Data_transfer_globus_18_02_22/Novaseq_160222_Bouzidi_RNA/fastq/
+echo "/SCVOL02/ideation_raw_data/Data_transfer_globus_18_02_22/Novaseq_160222_Bouzidi_RNA/fastq/FR-03-137-HM_S5_R1_001.fastq.gz" | awk -F'/' '{OFS="/"; $NF=""; print $0}'
+# OFS="/" : Définit le séparateur de sortie (Output Field Separator) à /, afin que les champs soient reconcaténés avec des /.
+#$NF="" : Supprime le dernier champ (qui correspond au nom de fichier).
+# print $0 : Imprime la ligne entière après modification
+
+# Et pour faire le contraire genre recupérer que le nom du fichier et donc le dernier élement : FR-03-137-HM_S5_R1_001.fastq.gz
+echo "/SCVOL02/ideation_raw_data/Data_transfer_globus_18_02_22/Novaseq_160222_Bouzidi_RNA/fastq/FR-03-137-HM_S5_R1_001.fastq.gz" | awk -F'/' '{print $NF}'
+
+## Commande pour calculer la longueur en pb d'un read
+zcat FR-01-173-RP-30M_R1.fastq.gz | awk 'NR%4==2 {total += length($0); count++} END {if (count > 0) print total/count " pb"; else print "Aucun read trouvé"}'
+# NR%4==2 permet de sélectionner les lignes qui contiennent les séquences (chaque 2e ligne des groupes de 4).
+# total += length($0) : Additionne la longueur de chaque séquence au total.
+# count++ : Incrémente le compteur de reads.
+
+# Pour Salmon, il faut utiliser le transcriptome qui contient les séquences de transcrits matures (cDNA) soit du hg19 ou hg38 (hg38 pour nous)
+# Et non pas le genome complet Homo_sapiens.hg38.fa
+
+1) Télécharger le fichier => wget ftp://ftp.ensembl.org/pub/release-106/fasta/homo_sapiens/cdna/Homo_sapiens.GRCh38.cdna.all.fa.gz
+2) Dezipper le fichier => gunzip Homo_sapiens.GRCh38.cdna.all.fa.gz
+3) Créer l'index à partir de la référence transcriptomique => salmon index -t Homo_sapiens.GRCh38.cdna.all.fa -i Homo_sapiens_GRCh38_cdna  
+# commande pour copier un dossier complet du cluster en local en utilisant rsync 
+rsync -avz --compress-level=9 --ignore-existing seck-thiam@134.157.67.8:/SCVOL02/PFGS_2024_0262_ABBAR/ rnaseq_smarter_test_baptiste
+
+#--compress-level=9 = pour la compression, permets d'accélérer le transfert
+#--ignore-existing pour ne pas copier les fichiers déja présents, permets de reprendre le transfert là où on s'est arrété
+-avz :
+-a : mode archive.
+-v : mode verbeux.
+-z : compression des fichiers pendant le transfert.
+
+### Gestion coupure VPN connexion avec rsync 
+
+while ! rsync -avz --append-verify --progress utilisateur@serveur_distant:/chemin/vers/source/ /chemin/vers/destination/; do
+  echo "La connexion a été perdue. Réessayer dans 5 secondes..."
+  sleep 5 # commande shell qui permets au script ou à la commande de faire une pause de 5 secondes avant de continuer à s'exécuter
+done
+
+# On peut aussi uutiliser les outils comme screen et tmux pour continuer le transfert avec rsync mm en cas de coupure de la connexion ssh
+Il suffit de lancer screen ou tmux en ligne de commande
+
+Cette option permet de reprendre les fichiers partiellement transférés et de vérifier leur intégrité.
+
+# commande pour copier un dossier en arrière plan du cluster SIRIC vers BMX en tappan tla commande à partir du SIRIC 
+scp -rp fastq_merged_lanes seck-thiam@134.157.57.221:/home/seck-thiam/COPYtoPSILO &
+
+# commande pour printer les colonnes d'un dataframe dont la colonne 19 comporte que des valeurs uniques donc pas de doublons utiles pour ajouter les ccf au peptides uniques
+awk '{if (!seen[$19]++) print}' FR-03-129-PN_filtre_ideation_tx.tsv
+
+# loop
+for i in *tsv; do base=$(echo $i | sed 's/_filtre_ideation_tx.tsv//'); awk '{if (!seen[$19]++) print}' $i > ${base}_uniq_peptide_filtre_ideation_tx.tsv; done
+
+
+
+# commande pour comparer 2 fichiers et renvoyés un message pour dire s'ils sont identiques ou pas
+for i in $(less old_ID); do diff ${i}_count.tsv htseq_count_old/${i}_count.tsv >/dev/null && echo "oui" || echo "non"; done
+
+# commande pour extraire le nombre total de reads avant filtre (1er occurence de total_reads) dans un fichier jason fastp output
+for i in *jason ; do base=$(echo $i | sed 's/.jason//'); res=$(grep -m 1 total_reads $i); echo $base $res; done | awk -F'"total_reads":' '{print $1, $2}' | cut -d, -f1
+
+# commande pour extraire le nombre total de reads apres filtre (1er occurence de total_reads) dans un fichier jason fastp output
+for i in *jason ; do base=$(echo $i | sed 's/.jason//'); res=$(grep total_reads $i | awk 'NR==2'); echo $base $res; done | awk -F'"total_reads":' '{print $1, $2}' | cut -d, -f1
+
+# commande pour extraire le taux de duplicats
+for i in *jason ; do base=$(echo $i | sed 's/.jason//'); res=$(grep rate $i | tail -n1); echo $base $res; done | awk -F'"rate":' '{print $1, $2}'
+
+# commande pour extraire le taux de GC avant filtre dans un fichier jason fastp output
+for i in *jason ; do base=$(echo $i | sed 's/.jason//'); res=$(grep -m 1 gc_content $i); echo $base $res; done | awk -F'"gc_content":' '{print $1, $2}'
+
+# commande pour extraire le taux de GC après filtre dans un fichier jason fastp	output
+for i in *jason ; do base=$(echo $i | sed 's/.jason//'); res=$(grep gc_content $i | awk 'NR==2'); echo $base $res; done | awk -F'"gc_content":' '{print $1, $2}'
+
+# commande combinée pour le % de GC avant et après filtre fastp
+for i in *jason ; do base=$(echo $i | sed 's/.jason//'); gc_av=$(grep -m 1 gc_content $i); gc_ap=$(grep gc_content $i | awk 'NR==2'); echo $base $gc_av $gc_ap; done | awk -F'"gc_content":' '{print $1, $2, $3}'
+
+" La commande ps -ef permets de lister les processus en cours
+# Commande pour copier du cluster BMX vers Local en passant par le nextcloud de la sorbone PSILO
+nextcloudcmd -u fatou.thiam@sorbonne-universite.fr --path fromPSILO ./COPYtoPSILO https://psilo.sorbonne-universite.fr
+
+# commande sftp pour se connecter des fichiers du cluster vers le local 
+sftp seck-thiam@134.157.57.221
+
+
+# Supprimer des répertoires avec find et -user
+find -type d -user seck-thiam | xargs rm -r
+
+
+" commande sfftp pour copier des fichiers
+sftp *
+
+# commandes pour selection neoepitope Baptiste
+# 1) Suppression doublons Même Chr, gène, HLA, WT et MT séquences, Best MT et WT score
+awk '!seen[$1" "$12" "$15" "$19" "$20" "$22" "$37]++' FR-04-060-SJB_filtre_ideation_wes.tsv > filtre1_FR-04-060-SJB
+
+# 2) Suppression doublons séquence MT(colonne 19) En ne gardant que l’association HLA-MT la plus affine (colonne 22 Best MT score)  (+flaguer ces NeoE promiscuitaire) 
+
+awk -F"\t" 'NR==1 {print; next} { MT = $19; score = $22; if(!seen[MT] || score < scores[MT]) {scores[MT] = score; lines[MT] = $0;} seen[MT]=1; } END {for (MT in lines) { print lines[MT];}}' filtre1_FR-04-060-SJB > filtre2_FR-04-060-SJB
+
+# commentaires du code : 
+# a) => NR==1 vérifie si nous sommes à la première ligne (le header). Si oui, on l'imprime simplement et on passe à la suivante avec "next"
+# b) => la commande extrait les valeurs de la colonne 19 (MT sequence) et la valeur de la colonne 22 (Best MT score)
+# c) => Vérifie si c'est la première occurrence de MT ou si le score est inférieur au score minimale actuel
+# d) => Si c'est le cas, met à jour le score minimal et la ligne correspondante(pour recupérer les autres lignes correspondantes), et flag le MT comme dèja vue et traitée
+# e) => Imprime les lignes conservées
+
+# 3) Par gène et mutation, une seule séquence conservée par type de HLA
+awk -F"\t" '!seen[$12" "$15" "$10]++' filtre2_FR-04-060-SJB
+
+# 4) Ici on considère NetMHC et NetMHCpan comme étant la meme chose et donc ne garder que les lignes où on a le plus petit faible score vu que les 2 prédisent les liaisons HLA de classe 1  
+# 4) Les trier les néoépitopes uniques en ne gardant que les peptides les plus afins qui ont un Best MT score (colonne 22) inférieur à 50  
+awk -F'\t' 'NR==1 {print; next} ; $22 < 50' filtre3_FR-04-060-SJB | sort -t$'\t' -k22,22n > filtre4_FR-04-060-SJB
+
+
+# Piste copie Globus
+globus-url-copy -vb -p 4 file:/SCVOL02/ideation_raw_data/Novaseq_080722_fastq_karim/*fastq.gz sshftp://seck-thiam@134.157.67.8/home/fatou/Novaseq_080722_fastq_karim/
+
+# Commande pour extraire les noms d'intérets, leur valeurs, et conversion des lignes en colonnes 
+for i in *rnaseq_report_before_rmdup_UniqueIdentical.txt; do base=$(echo $i |sed 's/_rnaseq_report_before_rmdup_UniqueIdentical.txt//'); res=$(grep -E 'in total|duplicates|mapped|properly paired ' $i | head -n4 | awk '{print $1}' | awk 'BEGIN { ORS = " " } { print }'); echo $base $res; done
+
+#Ligne de commande pour faire tourner facets-suite
+run-facets-wrapper.R --counts-file /SCVOL02/run_11/exome/cnv/FR-02-155-DG_snp-pileup.csv.gz --sample-id FR-02-155-DG --purity-cval 1000 --cval 500 -D /home/seck-thiam/ -fl /state/partition1/shared/apps/R/4.0/library
+
+# ligne de commande pour faire tourner snp-pileur avec facets-suite
+R CMD BATCH snp-pileup-wrapper.R --snp-pileup-path /SCVOL01/Tools/miniconda3/envs/FACETS/bin/snp-pileup --vcf-file /SCVOL02/run_11/vcf/FR-03-156-BE_snv.indels.wes.variants.vcf --normal-bam FR-03-156-BE_Germline_bqsr_realign_markdup_rg_sorted.bam --tumor-bam FR-03-156-BE_Tumour_bqsr_realign_markdup_rg_sorted.bam --output-prefix FR-03-156-BE
+
+# commande pour extraire les colonnes d'interets dans les maf et rajouter l'id dans la dernière colonne de chaque fichier
+for i in $(less id_lnh); do cut -f1,5-6 ${i}_filter.maf | sed -e 's/$/ '"$i"'/' > ${i}_start ; done
+
+# commande pour extraire les moyenne de la couverture
+for i in *Germline_depthofcoverage.sample_summary; do base=$(echo $i | sed 's/_Germline_depthofcoverage.sample_summary//'); cut -f1,3 $i | grep -v Total | grep -v sample_id; done
+
+# commande pour recupérer le taux de duplica rnaseq full lenght
+for i in *marked_dup_metrics.txt; do base=$(echo $i | sed 's/_marked_dup_metrics.txt//'); res=$(grep -v "#" $i | head -n3 | cut -f9 | grep -v PERCENT_DUPLICATION); echo -e $base'\t'$res; done
+
+
+# Pour calculer calculer le nbr de peptides avec ccf >=0.8 (clonal), et isoler les NA
+awk '{if($10>=0.8) print}' FR-02-079-MC_neopeptide_ccf.tsv | cut -f10 | grep NA | wc -l 
+
+'BEGIN { ORS = " " } { print }'# comamnde pour extraire la deusième colonne d'une fichier et convertir les sut de lignes sou retours chariot en tabulation => utile pour créer des tableau
+for i in *rnaseq.bamLog.final.out; do base=$(grep -wE 'Uniquely mapped reads % | % of reads mapped to multiple loci' $i | cut -d'|' -f2 | tr "\n" "\t"); echo $base; done > stats_run2
+
+# Commande pour trouver les individus qui ont à la fois le Germline et le Tumoral (ceux dont l'id idéation sont dupliqués)
+awk -F"\t" '{print $2}' run_11_samples_files.txt | sort |uniq -d -c
+
+#Isoler des champs ou colonnes en gardant le méme séparateur méme après le split
+
+ls -la | awk '{split($9,a,"_"); print a[1]}'| awk -F"-" '{print $1 "-" $2 "-"$3"-"$4}' > /home/seck-thiam/liste_hla_neoepitope.txt 
+
+##Commandes pour isoler uniquement les allèles HLA sans les quotes
+cat FR-03-111-TN-ClassII.HLAgenotype4digits | grep -v "#" | awk '{print $2,$4}' | tr -d "'"
+
+##Automatisation de la commande précédente
+
+for i in $(less /home/seck-thiam/liste_hla_neoepitope.txt); do cat ${i}-ClassI.HLAgenotype4digits | grep -v "#" | awk '{print $2,$4}' | tr -d "'" > /home/seck-thiam/HLA_alleles/${i}_classI.txt; done
+NB : le fichier liste_hla_neoepitope.txt contient les ID des échantillons que j'ai crée en amont avec cette commande ls -la | awk '{split($9,a,"_"); print a[1]}'| awk -F"-" '{print $1 "-" $2 "-"$3"-"$4}'
+ ### Ajouter le terme HLA dans les alleles HLA de classe 1
+for i in *_classI.txt; do awk '{print "HLA-" $1, "HLA-" $2}' $i > ${i}_hla; done
+
+## Transformer les colonnes 1 et 2 en lignes 
+for i in *_classI_hla; do awk 'BEGIN { ORS = " " } { print }' $i > ${i}_1; done
+
+### Enfin introduire des virgules entre les différents allèles
+for i in *_classI_hla_1; do sed -i 's/ /,/g' $i ; done 
+
+### commande combinée pour extraire les id alleles dans des fichiers et les mettre dans des fichiers:
+for i in *ClassI.HLAgenotype4digits; do grep -v "#" $i | awk '{print $2, $4}' | tr -d "'" | awk 'BEGIN { ORS = " " } { print }' > /home/seck-thiam/${i}_hla ; done
+## ensuite se placer dans /home/seck-thiam/${i}_hla et mettre la commande :
+###Pour la classeII
+
+1) for i in *ClassII.HLAgenotype4digits; do grep -v "#" $i | awk '{print $2, $4}' | tr -d "'" | awk 'BEGIN { ORS = " " } { print }' > /home/seck-thiam/${i}_hla ; done
+
+2) for i in *2; do sed -i 's/ /,/g' $i | sed -i 's/,$//' $i; done # pour ajouter des virgules entre les espaces et supprimer la dernière virgule
+
+### Pour la classeI
+1) for i in *ClassI.HLAgenotype4digits; do grep -v "#" $i | awk '{print $2, $4}' | tr -d "'" | awk '{print "HLA-" $1, "HLA-" $2}' | awk 'BEGIN { ORS = " " } { print }' > /home/seck-thiam/${i}_hla ; done
+2) for i in *_classI_hla_1; do sed -i 's/ /,/g' $i ; done
+
+
+### aficher le contenu des fichier classII et classI avec les id
+for i in *_classII; do base=$(cat $i); echo $i"_"$base; done
+
+### ou sinon faire pour ajouter id en début de chaque fichier. 
+sed -e 's/^/FR-02-119-BJM_/' FR-02-119-BJM_hla2
+
+### Command sed pour éliminer toutes les ligne sauf la ligne 1 et la ligne 331
+sed -i -n -e '1p' -e '331p' fichier_input
+
+## compter le nombre d'occurences dans une colonne donnée
+awk '{ tot[$2]++ } END { for (i in tot) print tot[i],i }' run_11_samples_files.txt 
+
+Pour imprimer une variable bash avec des doubles quotes (et non pas comme une chaine de caractère), il faut :
+
+'"'$1'"' ou i est la variable
+Fonction R pour installer plusieurs packages d'un seul coup et de vérifier les packages qui sont déja installer.
+
+# Package names
+packages <- c("ggplot2", "readxl", "dplyr", "tidyr", "ggfortify", "DT", "reshape2", "knitr", "lubridate", "pwr", "psy", "car", "doBy", "imputeMissings", "RcmdrMisc", "questionr", "vcd", "multcomp", "KappaGUI", "rcompanion", "FactoMineR", "factoextra", "corrplot", "ltm", "goeveg", "corrplot", "FSA", "MASS", "scales", "nlme", "psych", "ordinal", "lmtest", "ggpubr", "dslabs", "stringr", "assist", "ggstatsplot", "forcats", "styler", "remedy", "snakecaser", "addinslist", "esquisse", "here", "summarytools", "magrittr", "tidyverse", "funModeling", "pander", "cluster", "abind")
+
+# Install packages not yet installed
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages])
+}
+
+# Packages loading
+invisible(lapply(packages, library, character.only = TRUE))
+
+#Path samplist Karim
+ /SCVOL01/Workspace/Labreche/Ideation/run*txt
+
+### supprimer le dernier chiffre d'une coloonne
+
+awk -F"\t" '{print $1}' FR-03-078-RE.tsv | grep "\.[0-9][0-9]" | sed -i 's/[0-9]$//'
+
+#Permets de supprimer tous les dossiers créer par un user donné
+find -user seck-thiam -delete
+
+Ce genre d'erreur "OSError: [Errno 28] No space left on device: '/tmp/tmpaxef1p66/tmp.fasta.key'" est due à la saturation de l'espace temporaire des noeud de calcul /tmp.
+Pour y remedier, Il faut voir s'il y à une option dans le programme pour spécifier un tmp_dir ou de placer : export TMPDIR='/SCVOL01/Temp/' avant la commande.
+
+#commande sed pour ajouter une valeur à la fin de toutes les lignes
+
+for i in *ID; do sed -i "s/$/\t ${i}/" $i; done
+
+# commande pour supprimer une ligne vide
+sed '/^$/d' test > test.tmp
+ou sinon sed -i '/^$/d' test pour une suppression entière de la ligne
+
+# pour recherche dans tout le répertoire personnel à la recherche de tous les fichiers qui se terminent par les indicateurs .txt sont modifiés au cours des 5 derniers jours.
+find /répertoire/ -iname "*.txt" -mtime 5 -print
+
+# Trouver tous les fichiers modifiés il y a moins de 24 heures
+find /répertoire/ -iname "*.txt" -mtime -24 -print
+
+#Retrouver les fichiers modifiés il y a 60 min
+find /répertoire/ -iname "*.txt" -cmin -60 -print
+ # Commande pour numéroter les noms de colonnes :  on transforme les séparateurs (ici \t par des retours chariots) et on utilise la fonction nl (number line)
+head -n1 file | tr "\t" "\n" | nl
+
+#commande pour monter un disque mémoire sur un ordinateur
+ 2092  sudo fdisk -l
+ 2093  cd
+ 2094  cd/
+ 2095  cd /
+ 2096  mkdir /bigdisk
+ 2097  sudo mkdir /bigdisk /nom du disqu'on vas monter
+ 2098  sudo mount /dev/sda1 /bigdisk/  # ici on montre /bigdisk dans le disque /dev/sda1 qui existe déja
+ 2099  more /etc/mtab # pour regarder les disques récemment montés et copier la derniere ligne dans /etc/fstab (ligne suivant sudo nano /etc/fstab)
+ 2100  sudo nano /etc/fstab 
+  
+ # commande pour connaitre la taille d'un folder ou file
+ du -sh work/ (work étant mon dossier)
+
+# Commandes pour calculer le nombres d'individu unique EBV-NEG
+
+length(unique(matrice_MT_BA_lnh_ebv[matrice_MT_BA_lnh_ebv$EBV_Status=="EBV-NEG",]$Samples))
+#Commande pour isoler uniquement les individus EBV neg par exemple
+matrice_MT_BA_lnh_ebv[matrice_MT_BA_lnh_ebv$EBV_Status=="EBV-NEG",]
+
+# commande R pour connaitre les couples lignes/colonnes contenant au moins des valeurs manquantes
+which(is.na(df),arr.ind=TRUE)
+
+
+# commande pour faire tourner ngscheckmate
+python $NCM_HOME/ncm.py -B -f -l /SCVOL01/Projects/Ideation/docs/list_bam_run14.txt -O ./ -N NGScheckmate_run14_exome -bed /home/labreche/refs/snp_NGSmateChack_hg38.bed -r /refs/references/GENOME/Homo_sapiens.hg38/Homo_sapiens.hg38.fa
+
+
+compter le nombre de caractères dans une chaine de caractère avec la commande lenght de awk, et faire une boucle 
+awk (if (lenght ==15)) '{print $3}'
+
+# commande pour ajouter du texte en début de chauqe ligne avec sed (cette commande ajoutera Thiat en début de ligne avec tabulation \t
+sed 's/^/ Thiat\t /' file 
+#OuBien
+cat file | while read line; do echo "That$line"; done
+
+# commande pour extraire la colonnes 1 et 3, puis affichier la ligne 1, les 4 à 5 puis la ligne 9, changer le ligne + en /t et ajouter à la premiere ligne du résultat l'ID
+ awk '{print $1,$4}' FR-02-001-BC_rnaseq_report_before_rmdup_UniqueIdenticalNotMulti.txt | sed -n -e '1p' -e '4,5p' -e '9p' | tr '+' '\t'| sed -e '1iFR-02-001-BC
+
+
+ awk '{print $1}' FR-02-001-BC_rnaseq_report_before_rmdup_UniqueIdenticalNotMulti.txt | sed 's/in/total/' | sed -n -e '1p' -e '4,5p' -e '9p' | awk 'BEGIN { ORS = " " } { print }' | sed -e 's/^/ FR-02-001-BC\t /' > test
+ en Boucle :
+ 
+ ### Commande pour recupérer l'ID, print col1, changer in en total, recupérer les lignes 1,4,5 et 9, covertir les colonnes en ligne et enfin ajouter l'ID en debut de la ligne pour les différencier des autres files
+1) for i in *report.txt; do base=$(echo $i | cut -d_ -f1); awk '{print $1}' $i | sed 's/in/total/' | sed -n -e '1p' -e '4,5p' -e '9p' | awk 'BEGIN { ORS = " " } { print }' | sed -e "s/^/${base}\t /" > Stats/${base}_before; done
+
+2) for i in *report.txt; do base=$(echo $i | cut -d_ -f1); awk '{print $1}' $i | sed 's/in/total/' | sed -n -e '1p' -e '4,5p' -e '9p' | awk 'BEGIN { ORS = " " } { print }' | sed -e "s/^/${base}\t /" > Stats/${base}_after; done
+ 
+3) awk '{print $4}' FR-02-001-BC.txt | sed 's/in/total/' | sed -n -e '1p' -e '4,5p' -e '9p' | awk 'BEGIN { ORS = " " } { print }' | sed -e 's/^/ \t /' > header 
+ 
+ 
+ for i in *report_after.txt; do base=$(echo $i | cut -d_ -f1); awk '{print $4}' $i | sed 's/in/total/' | sed -n -e '1p' -e '4,5p' -e '9p' | awk 'BEGIN { ORS = " " } { print }' | sed -e 's/^/ \t /' > Stats/${base}_after; done
+ 
+ #POUR LES COLLER LIGNE PAR LIGNE
+ grep -e'$' test | cat - test1 
+
+ 
+ 4) for i in *after; do base=$(echo $i | cut -d_ -f1);  grep -e'$' header | cat - ${base}_after; done > table_after
+ 5) for i in *before; do base=$(echo $i | cut -d_ -f1);  grep -e'$' header | cat - ${base}_before; done > table_before
+
+
+#cp avec xargs
+for i in $(less ~/run2_rna_lymph); do ls | grep ${i}-ClassII.expression | xargs -I{} cp {} /SCVOL02/Bam_rna_Lymphomes/seq2HLA_expression ; done
+
+#cp avec xargs pour différents fichiers répartis dans plusieurs répertoires
+for i in $(less id_maf); do ls /SCVOL01/Projects/Ideation/run_*/exome/vcf/converted | grep ${i}_snv.indels.wes.variants.vcf$ | echo /SCVOL01/Projects/Ideation/run_*/exome/vcf/converted/${i}_snv.indels.wes.variants.vcf; done
+
+#commande sed pour modifier un fichier avec 2 variables
+for i in FR*; do run=$(echo $i | sed 's/_filter.maf//'); base=$(echo $i | 
+cut -d_ -f1); sed 's/'"$base"'/'"$run"'/g' $i > ${base}_essai; done
+# Pour les variables avec sed, il faut faire la substitution '"$variable"'
+
+## ajouter l'ID uniquement dans la première ligne avec sed
+
+for i in *ClassI.expression; do base=$(echo $i | sed 's/-ClassI.expression//'); cat $i | sed -e "s/^/\t /" | sed "1s/^/${base}/" ; done
+
+#commande pour ajouter des colonnes
+for i in *_vcf2maf.maf ; do s=$(echo $i | sed 's/_vcf2maf.maf//g') ; grep -v "#" $i | cut -f36-37 > /SCVOL02/maf_filter_all/new_maf/${s}_col ;  t=$(wc -l /SCVOL02/maf_filter_all/${s}_filter.maf | awk '{print $1}') ; q=$( wc -l /SCVOL02/maf_filter_all/new_maf/${s}_col  | awk '{print $1}') ; paste -d'\t' /SCVOL02/maf_filter_all/${s}_filter.maf /SCVOL02/maf_filter_all/new_maf/${s}_col > /SCVOL02/maf_filter_all/new_maf/${s}_filter.maf; done
+
+#Filtre maf avec cut column avec col HGVSp et HGVSp_short (col num 36 et 37)
+for i in FR-*; do grep -v "#" $i | cut -f1-30,36-37,40-45,52-55,93-96,101,105 > ${i}_filter; done
+
+# Calculer le nombre de reads dans un fastq
+echo $(zcat FR02-184-DD-FF_S7_L001_R1_001.fastq.gz| wc -l)/4|bc
+###Tuto git intéréssant
+https://www.google.com/search?channel=fs&client=ubuntu&q=apprendre+git#fpstate=ive&vld=cid:7655fd3e,vid:eXF0epLeCgo
+
+
+###pyclone prep data
+#1) prendre mes colonnes d'interets les maf file
+#2) extraires les colonnes d'interts dans le seg file
+cut -f1-4 FR-02-184-DD_snpileup_facets_seg.txt # colonnes 1 à colonnes 4
+#3) Calculer la colonnes major_cn et l'ajouter dans les files
+for i in *txt; do base=$(echo $i | sed 's/_snpileup_facets_seg.txt//'); cat $i| awk '{print $8-$9}' | sed '1 s/0/major_cn/' > ${base}_major_cn; done
+
+### Commande cluster pour regarder l'état des taches
+sacct -u [utilisateur] --format=jobid,jobname,user,maxvmsize,mincpu,alloccpus,reqmem,elapsed,state,exitcode,maxdiskread,maxdiskwrite | column -t -s $'\t' | less -S
+
+#Pour ReqMem, si la valeur finie par c, elle correspond à la mémoire allouée par coeur et doit donc être multipliée par la valeur de AllocCPUS pour obtenir la mémoire totale allouée à la tâche.
+#Si la valeur finie par n, elle correspond à la mémoire allouée pour un nœud indépendamment du nombre de cpus alloués à la tâche.
+
+# Package R pour regarder la signature 
+DeconstructSigs R et pour la philogéne ces dichee
+
+#Site pour coder en intelligence artificielle
+Chatgpt
+
+# calculer le pourcentage de NA dans les fichiers
+for i in *tsv; do all_line=$(cat $i | wc -l) ; NA=$(cat $i | grep NA | wc -l) ; echo $NA $all_line ;  done |  awk '{print $1/$2*100}'
+
+
+#calculer la somme des t_al_count (colonne 1) pour tous les fichiers
+for i in *tsv; do base=$(echo $i | sed 's/_count_depht_alt.tsv//'); res=$(awk '{sum += $2} END {print sum}' $i); echo -e $base '\t' $res; done > total_t_alt_count.csv
+
+
+#commande pour printer les colonnes d'un dataframe dont la colonne 19 comporte que des valeurs uniques donc pas de doublons
+awk '{if (!seen[$19]++) print}' FR-03-129-PN_filtre_ideation_tx.tsv 
+# loop
+for i in *tsv; do base=$(echo $i | sed 's/_filtre_ideation_tx.tsv//'); awk '{if (!seen[$19]++) print}' $i > ${base}_uniq_peptide_filtre_ideation_tx.tsv; done
+
+# A comparer ces 2 commandes pour s'assurer que tout vas bien sachant pour cette commande on a pas les autres colonnes correspondantes
+cut -f19 FR-03-129-PN_filtre_ideation_tx.tsv | sort | uniq   
+awk '{if (!seen[$19]++) print}' FR-03-129-PN_filtre_ideation_tx.tsv | cut -f19 | sort| uniq
+
+
+# COMMANDE A TESTER POUR BAPTISTE SUPPRESSION DE PLUSIEURS COLONNES
+awk '!seen[$1" "$2]++' donnees.txt > donnees_filtrees.txt
+
+# Commandes pour ajouter des fichiers local dans un répertoire distant Github
+1) cd chemin/vers/ton/dossier_local # se déplacer dans le dossier qui contient les fichiers à envoyer dans le rép distant git
+2) git init  #pour initialise Git
+3) git add . #pour ajouter tous les fichiers dans mon dépôt local Git  
+4) git commit -m "Premier commit ajout scripts nf" #Ensuite, valider ces changements avec un message: un warming sera affiché si aucun fichier n'a été modifié
+4-1) git status #pour vérifier si des fichiers sont suivis ou non par Git (a faire quand on a warming avec git commit) 
+5) git remote add origin git@github.com:FatouSeckThiam/script_nextflow_R_python_Sorbonne.git #pour lier le dépôt local au dépôt distant GitHub
+5-1) Si il ya une erreur de type fatal: remote origin already exists;  mettre git remote -v #pour vérifier les dépôts distants déjà configurés
+git remove -v affichera quelque chose comme : 
+origin	https://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@github.com/fatou/script_nextflow_R_python_Sorbonne.git (fetch)
+origin	https://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@github.com/fatou/script_nextflow_R_python_Sorbonne.git (push)
+5-2) Dans ce cas, il faut supprimer et recréer le dépôt distant avec cette commande git remote remove origin
+6) Puis reprendre la commande 5) git remote add origin git@github.com:FatouSeckThiam/script_nextflow_R_python_Sorbonne.git
+7) git branch -M main #Pour renommer la branceh principale "master" par "main" qui est plus adopter par les plateformes 
+8) Enfin git push -u origin main #pour transférer les fichiers de mon ordinateur vers mon dépôt GitHub distant. 
+
+  871  globus endpoint search --filter-scope my-endpoints
+  872  globus login
+  873  globus endpoint search --filter-scope my-endpoints
+  874  globus endpoint show cb866b56-36ac-11ee-9206-5b20905a64b1
+  875  globus endpoint show d1c6a3c2-3121-11ee-b44f-ebe908329287
+  876  globus endpoint local-id
+  877  globus endpoint show d1c6a3c2-3121-11ee-b44f-ebe908329287
+  globus ls d1c6a3c2-3121-11ee-b44f-ebe908329287:/
+  882  globus ls d1c6a3c2-3121-11ee-b44f-ebe908329287:/home/
+  883  globus ls d1c6a3c2-3121-11ee-b44f-ebe908329287:/home/fatou/ 
+  ls -lSh ~ | less
+  887  globus transfer --encrypt cb866b56-36ac-11ee-9206-5b20905a64b1:/home/fatou/dbsnp_146.Homo_sapiens.hg38.vcf.gz.tbi d1c6a3c2-3121-11ee-b44f-ebe908329287:~
+  888  globusconnectpersonal-3.2.2/globusconnectpersonal start &
+  889  globusconnectpersonal-3.2.2/globusconnectpersonal -start &
+  890  ls -lSh ~ | less
+  891  globus transfer --encrypt cb866b56-36ac-11ee-9206-5b20905a64b1:/home/fatou/dbsnp_146.Homo_sapiens.hg38.vcf.gz.tbi d1c6a3c2-3121-11ee-b44f-ebe908329287:~
+
+# créer un endpoint
+globus endpoint create --default-directory /home/fatou/Novaseq_080722_fastq_karim/ --personal Fastq_Fatou
+
+# commande pour restaurer la connection avec globus personnal (ordinateur local) en cas de bug
+./globusconnectpersonal -setup
